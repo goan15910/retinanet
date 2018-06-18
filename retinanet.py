@@ -113,8 +113,6 @@ class SubNet(nn.Module):
             x = self.base_activation(layer(x))
 
         x = self.subnet_output(x)
-        x = x.permute(0, 2, 3, 1).contiguous().view(x.size(0),
-                                                    x.size(2) * x.size(3) * self.anchors, -1)
 
         return x
 
@@ -135,13 +133,13 @@ class RetinaNet(nn.Module):
         super(RetinaNet, self).__init__()
         self.classes = classes
         self.fpn = FeaturePyramid(backbone(pretrained=pretrained))
-        self.subnet_box = SubNet(mode='boxes',
+        self.subnet_reg = SubNet(mode='boxes',
                                  anchors=n_anchors,
                                  classes=classes,
                                  depth=depth,
                                  base_activation=base_activation,
                                  output_activation=output_activation)
-        self.subnet_box = SubNet(mode='classes',
+        self.subnet_cls = SubNet(mode='classes',
                                  anchors=n_anchors,
                                  classes=classes,
                                  depth=depth,
@@ -151,10 +149,8 @@ class RetinaNet(nn.Module):
     def forward(self, x):
 
         fp_list = self.fpn(x)
-        boxes = torch.cat([self.subnet_box(fp) for fp in fp_list])
-        classes = torch.cat([self.subnet_cls(fp) for fp in fp_list])
+        cls_list = [self.subnet_cls(fp) for fp in fp_list]
+        reg_list = [self.subnet_reg(fp) for fp in fp_list]
 
-        # TODO: verify if the boxes need to be transformed
-
-        return boxes, classes
+        return cls_list, reg_list
 
